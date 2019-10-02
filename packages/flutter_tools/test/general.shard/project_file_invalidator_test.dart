@@ -14,13 +14,21 @@ void main() {
     final MemoryFileSystem memoryFileSystem = MemoryFileSystem();
     testUsingContext('No last compile', () async {
       expect(
-        ProjectFileInvalidator.findInvalidated(lastCompiled: null, urisToMonitor: <Uri>[], packagesPath: ''),
+        await ProjectFileInvalidator.findInvalidated(
+            lastCompiled: null,
+            urisToMonitor: <Uri>[],
+            packagesPath: '',
+          ),
         isEmpty);
     });
 
     testUsingContext('Empty project', () async {
       expect(
-        ProjectFileInvalidator.findInvalidated(lastCompiled: DateTime.now(), urisToMonitor: <Uri>[], packagesPath: ''),
+        await ProjectFileInvalidator.findInvalidated(
+            lastCompiled: DateTime.now(),
+            urisToMonitor: <Uri>[],
+            packagesPath: '',
+          ),
         isEmpty);
     }, overrides: <Type, Generator>{
       FileSystem: () => memoryFileSystem,
@@ -28,10 +36,36 @@ void main() {
 
     testUsingContext('Non-existent files are ignored', () async {
       expect(
-        ProjectFileInvalidator.findInvalidated(
+        await ProjectFileInvalidator.findInvalidated(
             lastCompiled: DateTime.now(),
             urisToMonitor: <Uri>[Uri.parse('/not-there-anymore'),],
             packagesPath: '',
+          ),
+        isEmpty);
+    }, overrides: <Type, Generator>{
+      FileSystem: () => memoryFileSystem,
+    });
+
+    testUsingContext('Empty project (async)', () async {
+      expect(
+        await ProjectFileInvalidator.findInvalidated(
+            lastCompiled: DateTime.now(),
+            urisToMonitor: <Uri>[],
+            packagesPath: '',
+            asyncScanning: true,
+          ),
+        isEmpty);
+    }, overrides: <Type, Generator>{
+      FileSystem: () => memoryFileSystem,
+    });
+
+    testUsingContext('Non-existent files are ignored (async)', () async {
+      expect(
+        await ProjectFileInvalidator.findInvalidated(
+            lastCompiled: DateTime.now(),
+            urisToMonitor: <Uri>[Uri.parse('/not-there-anymore'),],
+            packagesPath: '',
+            asyncScanning: true,
           ),
         isEmpty);
     }, overrides: <Type, Generator>{

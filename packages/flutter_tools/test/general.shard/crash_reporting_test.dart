@@ -32,20 +32,21 @@ void main() {
     });
 
     setUp(() async {
-      CrashReportSender.crashFileSystem = MemoryFileSystem();
+      CrashReporter.crashFileSystem = MemoryFileSystem();
+      CrashReporter.client = Client();
       setExitFunctionForTests((_) { });
-      MockCrashReportSender.sendCalls = 0;
+      MockCrashReporterClient.sendCalls = 0;
     });
 
     tearDown(() {
-      CrashReportSender.crashFileSystem = const LocalFileSystem();
+      CrashReporter.crashFileSystem = const LocalFileSystem();
       restoreExitFunction();
     });
 
     testUsingContext('should send crash reports', () async {
       final RequestInfo requestInfo = RequestInfo();
 
-      CrashReportSender.initializeWith(MockCrashReportSender(requestInfo));
+      CrashReporter.client = MockCrashReporterClient(requestInfo);
       final int exitCode = await tools.run(
         <String>['crash'],
         <FlutterCommand>[_CrashCommand()],
@@ -65,8 +66,8 @@ void main() {
         exitCodeCompleter.complete(exitCode);
       });
 
-      CrashReportSender.initializeWith(
-          CrashingCrashReportSender(const SocketException('no internets')));
+      CrashReporter.client =
+          CrashingCrashReportSender(const SocketException('no internets'));
 
       unawaited(tools.run(
         <String>['crash'],
@@ -86,8 +87,8 @@ void main() {
         exitCodeCompleter.complete(exitCode);
       });
 
-      CrashReportSender.initializeWith(
-          CrashingCrashReportSender(const HttpException('no internets')));
+      CrashReporter.client =
+          CrashingCrashReportSender(const HttpException('no internets'));
 
       unawaited(tools.run(
         <String>['crash'],
@@ -109,7 +110,7 @@ void main() {
 
       final RequestInfo requestInfo = RequestInfo();
 
-      CrashReportSender.initializeWith(MockCrashReportSender(requestInfo));
+      CrashReporter.client = MockCrashReporterClient(requestInfo);
 
       unawaited(tools.run(
         <String>['crash'],
@@ -132,8 +133,8 @@ void main() {
       });
 
       final RequestInfo requestInfo = RequestInfo();
-      final MockCrashReportSender sender = MockCrashReportSender(requestInfo);
-      CrashReportSender.initializeWith(sender);
+      final MockCrashReporterClient sender = MockCrashReporterClient(requestInfo);
+      CrashReporter.client = sender;
 
       FakeAsync().run((FakeAsync time) {
         time.elapse(const Duration(seconds: 1));
@@ -147,7 +148,7 @@ void main() {
         time.flushMicrotasks();
       });
       expect(await exitCodeCompleter.future, 1);
-      expect(MockCrashReportSender.sendCalls, 1);
+      expect(MockCrashReporterClient.sendCalls, 1);
       await verifyCrashReportSent(requestInfo, crashes: 4);
     }, overrides: <Type, Generator>{
       DoctorValidatorsProvider: () => FakeDoctorValidatorsProvider(),
@@ -158,7 +159,7 @@ void main() {
       String method;
       Uri uri;
 
-      CrashReportSender.initializeWith(MockClient((Request request) async {
+      CrashReporter.client = MockClient((Request request) async {
         method = request.method;
         uri = request.url;
 
@@ -166,7 +167,7 @@ void main() {
           'test-report-id',
           200,
         );
-      }));
+      });
 
       final int exitCode = await tools.run(
         <String>['crash'],
@@ -188,10 +189,10 @@ void main() {
 
     testUsingContext('can override base URL', () async {
       Uri uri;
-      CrashReportSender.initializeWith(MockClient((Request request) async {
+      CrashReporter.client = MockClient((Request request) async {
         uri = request.url;
         return Response('test-report-id', 200);
-      }));
+      });
 
       final int exitCode = await tools.run(
         <String>['crash'],
@@ -264,15 +265,15 @@ Future<void> verifyCrashReportSent(RequestInfo crashInfo, {
 
   // Verify that we've written the crash report to disk.
   final List<String> writtenFiles =
-    CrashReportSender.crashFileSystem.directory('/').listSync(recursive: true)
+    CrashReporter.crashFileSystem.directory('/').listSync(recursive: true)
       .map((FileSystemEntity e) => e.path).toList();
   expect(writtenFiles, hasLength(crashes));
   expect(writtenFiles, contains('flutter_01.log'));
 }
 
-class MockCrashReportSender extends MockClient {
-  MockCrashReportSender(RequestInfo crashInfo) : super((Request request) async {
-    MockCrashReportSender.sendCalls++;
+class MockCrashReporterClient extends MockClient {
+  MockCrashReporterClient(RequestInfo crashInfo) : super((Request request) async {
+    MockCrashReporterClient.sendCalls++;
     crashInfo.method = request.method;
     crashInfo.uri = request.url;
 

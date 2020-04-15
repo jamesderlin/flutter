@@ -114,9 +114,11 @@ Future<int> _handleToolError(
       return _exit(1);
     }
 
-    // Report to both [Usage] and [CrashReportSender].
+    final CrashReporter crashReporter = context.get<CrashReporter>();
+
+    // Report to both [Usage] and [CrashReporter].
     globals.flutterUsage.sendException(error);
-    await CrashReportSender.instance.sendReport(
+    await crashReporter.sendReport(
       error: error,
       stackTrace: stackTrace,
       getFlutterVersion: getFlutterVersion,
@@ -127,16 +129,15 @@ Future<int> _handleToolError(
     globals.printError('Oops; flutter has exited unexpectedly: "$errorString".');
 
     try {
-      await CrashReportSender.instance.informUserOfCrash(args, error, stackTrace, errorString);
+      await crashReporter.informUser(args, error, stackTrace, errorString);
 
       return _exit(1);
     // This catch catches all exceptions to ensure the message below is printed.
     } catch (error) { // ignore: avoid_catches_without_on_clauses
       globals.stdio.stderrWrite(
         'Unable to generate crash report due to secondary error: $error\n'
-        'please let us know at https://github.com/flutter/flutter/issues.\n',
-      );
-      // Any exception throw here (including one thrown by `_exit()`) will
+        '${globals.userMessages.flutterToolBugInstructions}\n');
+      // Any exception thrown here (including one thrown by `_exit()`) will
       // get caught by our zone's `onError` handler. In order to avoid an
       // infinite error loop, we throw an error that is recognized above
       // and will trigger an immediate exit.

@@ -28,31 +28,23 @@ const String _kStackTraceFilename = 'stacktrace_file';
 
 /// Sends crash reports to Google.
 ///
-/// There are two ways to override the behavior of this class:
+/// There are several ways to override the behavior of this class:
 ///
 /// * Define a `FLUTTER_CRASH_SERVER_BASE_URL` environment variable that points
 ///   to a custom crash reporting server. This is useful if your development
 ///   environment is behind a firewall and unable to send crash reports to
 ///   Google, or when you wish to use your own server for collecting crash
 ///   reports from Flutter Tools.
-/// * In tests call [initializeWith] and provide a mock implementation of
+/// * Set [AppContext.CrashReporter] to a custom implementation.
+/// * In tests set [CrashReporter.client] to a mock implementation of
 ///   [http.Client].
-class CrashReportSender {
-  CrashReportSender._(this._client);
-
-  static CrashReportSender _instance;
-
-  static CrashReportSender get instance => _instance ?? CrashReportSender._(http.Client());
+class CrashReporter {
+  /// Allow the default [http.Client] to be overridden for testing purposes.
+  @visibleForTesting
+  static http.Client client = http.Client();
 
   bool _crashReportSent = false;
 
-  /// Overrides the default [http.Client] with [client] for testing purposes.
-  @visibleForTesting
-  static void initializeWith(http.Client client) {
-    _instance = CrashReportSender._(client);
-  }
-
-  final http.Client _client;
   final Usage _usage = globals.flutterUsage;
 
   Uri get _baseUrl {
@@ -116,7 +108,7 @@ class CrashReportSender {
         filename: _kStackTraceFilename,
       ));
 
-      final http.StreamedResponse resp = await _client.send(req);
+      final http.StreamedResponse resp = await client.send(req);
 
       if (resp.statusCode == 200) {
         final String reportId = await http.ByteStream(resp.stream)
@@ -138,9 +130,9 @@ class CrashReportSender {
     }
   }
 
-  Future<void> informUserOfCrash(List<String> args, dynamic error, StackTrace stackTrace, String errorString) async {
-    final String doctorText = await _doctorText();
-    final File file = await _createLocalCrashReport(args, error, stackTrace, doctorText);
+  Future<void> informUser(List<String> args, dynamic error, StackTrace stackTrace, String errorString) async {
+    final String doctorText = await getDoctorText();
+    final File file = await createLocalCrashReport(args, error, stackTrace, doctorText);
 
     globals.printError('A crash report has been written to ${file.path}.');
     globals.printStatus('This crash may already be reported. Check GitHub for similar crashes.', emphasis: true);
@@ -181,7 +173,7 @@ class CrashReportSender {
   static FileSystem crashFileSystem = const LocalFileSystem();
 
   /// Saves the crash report to a local file.
-  Future<File> _createLocalCrashReport(List<String> args, dynamic error, StackTrace stackTrace, String doctorText) async {
+  Future<File> createLocalCrashReport(List<String> args, dynamic error, StackTrace stackTrace, String doctorText) async {
     File crashFile = globals.fsUtils.getUniqueFile(
       crashFileSystem.currentDirectory,
       'flutter',
@@ -222,7 +214,7 @@ class CrashReportSender {
     return crashFile;
   }
 
-  Future<String> _doctorText() async {
+  Future<String> getDoctorText() async {
     try {
       final BufferLogger logger = BufferLogger(
         terminal: globals.terminal,

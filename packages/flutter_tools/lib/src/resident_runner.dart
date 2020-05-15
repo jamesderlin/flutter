@@ -1016,7 +1016,7 @@ abstract class ResidentRunner {
   /// If the device has a connected vmservice, this method will attempt to hide
   /// and restore the debug banner before taking the screenshot.
   ///
-  /// Throws an [AssertionError] if [Devce.supportsScreenshot] is not true.
+  /// Throws an [AssertionError] if [Device.supportsScreenshot] is not true.
   Future<void> screenshot(FlutterDevice device) async {
     assert(device.device.supportsScreenshot);
 
@@ -1368,7 +1368,7 @@ class TerminalHandler {
   /// Returns [true] if the input has been handled by this function.
   Future<bool> _commonTerminalInputHandler(String character) async {
     globals.printStatus(''); // the key the user tapped might be on this line
-    switch(character) {
+    switch (character) {
       case 'a':
         if (residentRunner.supportsServiceProtocol) {
           await residentRunner.debugToggleProfileWidgetBuilds();
